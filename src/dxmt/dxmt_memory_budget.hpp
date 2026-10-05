@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 namespace dxmt {
 
@@ -35,8 +36,8 @@ inline size_t queryRingRetainedBlocks() {
     const size_t keep = ringRetainedBlocks(headroom);
     const size_t previous = retained.exchange(keep, std::memory_order_relaxed);
     if (previous != keep)
-      Logger::info("[ring-pressure] headroomMB=", headroom, " retainBlocks=",
-                   keep == std::numeric_limits<size_t>::max() ? 0 : keep,
+      Logger::info("[ring-pressure] headroomMB=" + std::to_string(headroom) +
+                   " retainBlocks=" + std::to_string(keep == std::numeric_limits<size_t>::max() ? 0 : keep) +
                    " (0=ordinary lifetime)");
   }
   return retained.load(std::memory_order_relaxed);
