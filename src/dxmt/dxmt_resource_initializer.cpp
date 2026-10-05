@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <mutex>
 #include "dxmt_mem_census.hpp"
+#include "dxmt_memory_budget.hpp"
 #include "dxmt_bcn.hpp"
 #include "util_madeira_switch.hpp"
 
@@ -650,7 +651,7 @@ ResourceInitializer::flushInternal() {
   cmdbuf.commit();
   reset();
   cached_coherent_seq_id = upload_queue_event_.signaledValue();
-  gpu_command_heap_allocator.free_blocks(cached_coherent_seq_id);
+  gpu_command_heap_allocator.free_blocks(cached_coherent_seq_id, queryRingRetainedBlocks());
   return seq_id;
 }
 
@@ -659,10 +660,10 @@ ResourceInitializer::flushToWait() {
   std::lock_guard<dxmt::mutex> lock(mutex_);
 
   if (idle()) {
-    gpu_command_heap_allocator.free_blocks(cached_coherent_seq_id);
-    if (cached_coherent_seq_id == current_seq_id_ - 1)
-      return 0;
+    // Refresh before reclaiming: a completed scene upload must not sit in the
+    // cache until a later flush just because the previous fence sample lagged.
     cached_coherent_seq_id = upload_queue_event_.signaledValue();
+    gpu_command_heap_allocator.free_blocks(cached_coherent_seq_id, queryRingRetainedBlocks());
     if (cached_coherent_seq_id == current_seq_id_ - 1)
       return 0;
     return current_seq_id_ - 1;

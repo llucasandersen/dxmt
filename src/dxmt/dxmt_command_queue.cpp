@@ -1,6 +1,7 @@
 #include "dxmt_command_queue.hpp"
 #include "Metal.hpp"
 #include "dxmt_statistics.hpp"
+#include "dxmt_memory_budget.hpp"
 #include "util_env.hpp"
 #include "util_win32_compat.h"
 #include <algorithm>
@@ -204,9 +205,10 @@ CommandQueue::WaitForFinishThread() {
     chunk_ongoing.fetch_sub(1, std::memory_order_release);
     dxmt::atomic_notify_one(chunk_ongoing);
 
-    staging_allocator.free_blocks(internal_seq);
-    copy_temp_allocator.free_blocks(internal_seq);
-    argbuf_allocator.free_blocks(internal_seq);
+    const size_t retained_blocks = queryRingRetainedBlocks();
+    staging_allocator.free_blocks(internal_seq, retained_blocks);
+    copy_temp_allocator.free_blocks(internal_seq, retained_blocks);
+    argbuf_allocator.free_blocks(internal_seq, retained_blocks);
 
     internal_seq++;
   }

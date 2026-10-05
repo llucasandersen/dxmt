@@ -8,6 +8,7 @@
 #include <cassert>
 #include <mutex>
 #include <queue>
+#include <limits>
 #include "dxmt_mem_census.hpp"
 
 namespace dxmt {
@@ -107,7 +108,7 @@ public:
   std::pair<typename Allocator::Block &, uint64_t>
   allocate(uint64_t seq_id, uint64_t coherent_id, size_t size, size_t alignment);
 
-  void free_blocks(uint64_t coherent_id);
+  void free_blocks(uint64_t coherent_id, size_t retained_blocks = std::numeric_limits<size_t>::max());
 
 private:
   struct Allocation {
@@ -342,7 +343,7 @@ RingBumpState<Allocator, BlockSize, mutex>::allocate(
 
 template <typename Allocator, size_t BlockSize, class mutex>
 void
-RingBumpState<Allocator, BlockSize, mutex>::free_blocks(uint64_t coherent_id) {
+RingBumpState<Allocator, BlockSize, mutex>::free_blocks(uint64_t coherent_id, size_t retained_blocks) {
   std::lock_guard<mutex> lock(mutex_);
   while (!fifo.empty()) {
     auto &front = fifo.front();
@@ -351,7 +352,11 @@ RingBumpState<Allocator, BlockSize, mutex>::free_blocks(uint64_t coherent_id) {
     auto expired = (coherent_id - front.last_used_seq_id) > kStagingBlockLifetime ||
                    front.inc_time_to_live > kStagingBlockLifetime || coherent_id == -1ull;
     auto adhoc = front.total_size != BlockSize && !front.reusable_oversize;
-    if (expired || adhoc) {
+    // Keep the newest block for subsequent suballocations. In-flight entries
+    // remain protected by the completion check above even when the queue is
+    // larger than the pressure budget. No active resource is evicted here.
+    const bool pressure_surplus = fifo.size() > std::max(size_t(1), retained_blocks);
+    if (expired || adhoc || pressure_surplus) {
       // can be deallocated
       if (front.reusable_oversize) --reusable_oversize_blocks_;
       fifo.pop();
