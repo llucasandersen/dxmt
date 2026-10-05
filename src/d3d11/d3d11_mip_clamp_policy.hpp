@@ -5,8 +5,8 @@
  * The clamp itself (ml675/ml745/ml746) creates an eligible texture with its top
  * `bias` levels missing from the PHYSICAL Metal texture while the D3D
  * descriptor stays LOGICAL. d3d11.mipClampBC=N applies it to every eligible
- * texture. d3d11.mipClampAuto (a Madeira switch: default on only in the i386
- * build) applies bias 1 only to LARGE ones, and only while the process is
+ * texture. d3d11.mipClampAuto (default on for both 32-bit and 64-bit guests)
+ * applies bias 1 only to LARGE ones, and only while the process is
  * close to its memory limit: a scene load that would otherwise run the
  * footprint into jetsam gets half-resolution top mips for the textures it
  * creates from then on, and a process with room to spare is left untouched. */

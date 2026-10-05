@@ -440,8 +440,9 @@ static inline bool IsBCFormatForClamp(uint32_t f) {
  * created while the process is within d3d11.mipClampAutoMB (default 1536) of
  * its limit, as reported by os_proc_available_memory() through MadeiraCtl op 7.
  *
- * A Madeira switch (util_madeira_switch.hpp): on by default only in the
- * i386 build; every 64-bit build leaves textures alone unless
+ * A Madeira switch (util_madeira_switch.hpp): on by default for both 32-bit
+ * and 64-bit guests. Measured headroom, rather than pointer width, determines
+ * whether a texture is reduced. Explicit
  * d3d11.mipClampAuto (dxmt.conf / madeira.cfg) or MADEIRA_MIP_CLAMP_AUTO is
  * set to an "on" value. Either one set to 0/false/off/no disables it. An
  * explicit d3d11.mipClampBC=N>0 takes precedence.
@@ -463,7 +464,7 @@ GetMipClampAutoConfig() {
     else if (!opt.empty() || !env_v.empty())
       c.enabled = true;
     else
-      c.enabled = kMadeira32BitModule;
+      c.enabled = true;
     c.threshold_mb = (uint32_t)std::max(0, Config::getInstance().getOption<int>("d3d11.mipClampAutoMB", 1536));
     if (c.enabled)
       ERR("[mip-clamp] ml2000 auto on threshold=", c.threshold_mb,
